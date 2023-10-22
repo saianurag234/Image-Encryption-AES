@@ -4,6 +4,5 @@ fastapi
 starlette
 pathlib
 uuid
-pickle
 uvicorn
-hashlib
+pycryptodome
