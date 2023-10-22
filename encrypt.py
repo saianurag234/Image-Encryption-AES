@@ -12,6 +12,7 @@ class AES_encryption:
         self.no_of_round = KEY_SIZE_ROUND
         self.round_keys = self.expand_key()
 
+
         if len(self.image_data.shape) == 3:
             self.is_colour = True
             self.image_metadata_info = image_metadata(self.image_data.shape[0],self.image_data.shape[1],self.is_colour,self.image_data.shape[2])
@@ -25,31 +26,63 @@ class AES_encryption:
     @staticmethod
     def _sub_word(word: np.ndarray) -> np.ndarray:
         return np.array([S_BOX[b//0x10][b%0x10] for b in word], dtype=np.uint8)
+    
+    '''
+      Key Expansion function for AES-128
+
+    '''
+    # def expand_key(self) -> list:
+    #     num_rounds = 10
+    #     round_keys = [self.master_key]
+
+    #     for i in range(num_rounds):
+    #         previous_key = round_keys[-1]
+    #         new_key = np.zeros((4, 4), dtype=np.uint8)
+
+    #         word = np.roll(previous_key[:, 3], -1)
+    #         word = self._sub_word(word)
+    #         word[0] ^= R_CON[i * 4]
+
+    #         new_key[:, 0] = word ^ previous_key[:, 0]
+
+    #         for j in range(1, 4):
+    #             new_key[:, j] = new_key[:, j-1] ^ previous_key[:, j]
+
+    #         round_keys.append(new_key)
+
+    #     return round_keys
+
 
     def expand_key(self) -> list:
-        num_rounds = 10
+
+        '''
+            Key Expansion function for AES-256
+        
+        '''
+        num_rounds = 14
         round_keys = [self.master_key]
+ 
+        words = [self.master_key[:, i] for i in range(8)]
 
-        for i in range(num_rounds):
-            previous_key = round_keys[-1]
-            new_key = np.zeros((4, 4), dtype=np.uint8)
+        while len(words) < 4 * (num_rounds + 1):
+            word = words[-1].copy()
 
-            word = np.roll(previous_key[:, 3], -1)
-            word = self._sub_word(word)
-            word[0] ^= R_CON[i * 4]
+            if len(words) % 8 == 0:
+                word = np.roll(word, -1)
+                word = self._sub_word(word)
+                word[0] ^= R_CON[len(words) // 8]
+            elif len(words) % 8 == 4:
+                word = self._sub_word(word)
+        
+            word = word ^ words[-8]
+            words.append(word)
 
-            new_key[:, 0] = word ^ previous_key[:, 0]
+        for i in range(0, len(words), 4):
+            round_keys.append(np.column_stack(words[i:i+4]))
 
-            for j in range(1, 4):
-                new_key[:, j] = new_key[:, j-1] ^ previous_key[:, j]
-
-            round_keys.append(new_key)
-
-        return round_keys
+        return round_keys[1:]
 
 
-
-    
     def xor_round_key(self,state_block, round_key):
         for i in range(0,STATE_BLOCK_SIZE):
             for j in range(0,STATE_BLOCK_SIZE):
@@ -94,7 +127,7 @@ class AES_encryption:
     def encrypt_block(self,state_block,round_keys):
         block = state_block
         
-        for round_num in range(1, 11):
+        for round_num in range(1, 15):
             block = self.substitute_bytes(block)
             block = self.shift_rows(block)
             
@@ -105,7 +138,6 @@ class AES_encryption:
 
         return block
     
-
 
     def encrypt_image(self,image_array):
         state_array = []

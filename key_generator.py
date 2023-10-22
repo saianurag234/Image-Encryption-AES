@@ -10,7 +10,7 @@ class KeyGenerator:
     def feed_entropy(self, source):
         self.state = hashlib.sha256(self.state + source).digest()
 
-    def generate_key(self, size=16):
+    def generate_key(self, size=32):
         while True:
             self.state = hashlib.sha256(self.state).digest()
             self.feed_entropy(str(time.time()).encode())

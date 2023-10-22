@@ -18,28 +18,63 @@ class AES_decryption:
     @staticmethod
     def _sub_word(word: np.ndarray) -> np.ndarray:
         return np.array([S_BOX[b//0x10][b%0x10] for b in word], dtype=np.uint8)
+    
+    '''
+      Key Expansion function for AES-128
+
+    '''
+
+    # def expand_key(self) -> list:
+    #     num_rounds = 10
+    #     round_keys = [self.master_key]
+
+    #     for i in range(num_rounds):
+    #         previous_key = round_keys[-1]
+    #         new_key = np.zeros((4, 4), dtype=np.uint8)
+
+    #         word = np.roll(previous_key[:, 3], -1)
+    #         word = self._sub_word(word)
+    #         word[0] ^= R_CON[i * 4]
+
+    #         new_key[:, 0] = word ^ previous_key[:, 0]
+
+    #         for j in range(1, 4):
+    #             new_key[:, j] = new_key[:, j-1] ^ previous_key[:, j]
+
+    #         round_keys.append(new_key)
+
+    #     return round_keys
+
+    '''
+      Key Expansion function for AES-256
+
+    '''
 
     def expand_key(self) -> list:
-        num_rounds = 10
+        num_rounds = 14
         round_keys = [self.master_key]
+    
+        # Assuming the master key is a single 8x4 array
+        words = [self.master_key[:, i] for i in range(8)]
 
-        for i in range(num_rounds):
-            previous_key = round_keys[-1]
-            new_key = np.zeros((4, 4), dtype=np.uint8)
+        while len(words) < 4 * (num_rounds + 1):
+            word = words[-1].copy()
 
-            word = np.roll(previous_key[:, 3], -1)
-            word = self._sub_word(word)
-            word[0] ^= R_CON[i * 4]
+            if len(words) % 8 == 0:
+                word = np.roll(word, -1)
+                word = self._sub_word(word)
+                word[0] ^= R_CON[len(words) // 8]
+            elif len(words) % 8 == 4:
+                word = self._sub_word(word)
+        
+            word = word ^ words[-8]
+            words.append(word)
 
-            new_key[:, 0] = word ^ previous_key[:, 0]
+        # Convert list of words into list of keys
+        for i in range(0, len(words), 4):
+            round_keys.append(np.column_stack(words[i:i+4]))
 
-            for j in range(1, 4):
-                new_key[:, j] = new_key[:, j-1] ^ previous_key[:, j]
-
-            round_keys.append(new_key)
-
-        return round_keys
-
+        return round_keys[1:]  # We don't want the master key in the round_keys
     
     def inverse_substitute_bytes(self, state_block):
         for i in range(4):
@@ -72,7 +107,7 @@ class AES_decryption:
     def decrypt_block(self,state_block,round_keys):
         block = state_block
         
-        for round_num in reversed(range(1,11)):
+        for round_num in reversed(range(1,15)):
             block = self.add_round_key(block, round_keys[round_num])
 
             if round_num < KEY_SIZE_ROUND:
@@ -85,52 +120,58 @@ class AES_decryption:
         return block
     
     
-    def decrypt_image(self,image_array):
-        round_keys = self.expand_key()
-        
-        cipher_image_blocks = []
-
-        decrypted_image = []
-
-        for i in range(0, len(image_array), BLOCK_SIZE):
-            chunk = image_array[i:i + BLOCK_SIZE]
-            state_block = np.array(chunk).reshape(4, 4)
-            cipher_image_blocks.append(state_block)
-
-        for i in range(0, len(cipher_image_blocks)):
-            block = cipher_image_blocks[i]
-
-            block = self.decrypt_block(block,round_keys)
-
-            block = self.add_round_key(block,round_keys[0])
-
-            decrypted_image.extend(block.reshape(-1))
-
-        decrypted_data = PKCS7.pkcs7_unpadding(decrypted_image)
-
-        decrypted_data = np.array(decrypted_data)
-
-       
-        decrypted_data = decrypted_data.reshape((self.image_metadata.image_height,self.image_metadata.image_width))
-
-        return decrypted_data
-
-    # def decrypt_image(self, image_array):
+    # def decrypt_image(self,image_array):
     #     round_keys = self.expand_key()
-    #     total_blocks = len(image_array) // BLOCK_SIZE
-    #     cipher_image_blocks = image_array.reshape(total_blocks, 4, 4)
-        
-    #     decrypted_image = np.zeros_like(image_array)
 
-    #     # Iterate over the blocks
-    #     for idx in range(total_blocks):
-    #         block = cipher_image_blocks[idx]
-    #         block = self.decrypt_block(block, round_keys)
-    #         block = self.add_round_key(block, round_keys[0])
-    #         decrypted_image[idx * BLOCK_SIZE: (idx + 1) * BLOCK_SIZE] = block.flatten()
+    #     cipher_image_blocks = []
+
+    #     decrypted_image = []
+
+    #     for i in range(0, len(image_array), BLOCK_SIZE):
+    #         chunk = image_array[i:i + BLOCK_SIZE]
+    #         state_block = np.array(chunk).reshape(4, 4)
+    #         cipher_image_blocks.append(state_block)
+
+    #     for i in range(0, len(cipher_image_blocks)):
+    #         block = cipher_image_blocks[i]
+
+    #         block = self.decrypt_block(block,round_keys)
+
+    #         block = self.add_round_key(block,round_keys[0])
+
+    #         decrypted_image.extend(block.reshape(-1))
 
     #     decrypted_data = PKCS7.pkcs7_unpadding(decrypted_image)
-    #     return decrypted_data.reshape((self.image_metadata.image_height, self.image_metadata.image_width))
+
+    #     decrypted_data = np.array(decrypted_data)
+
+       
+    #     decrypted_data = decrypted_data.reshape((self.image_metadata.image_height,self.image_metadata.image_width))
+
+    #     return decrypted_data
+
+    '''
+      Optimized way of writing the above decrypt_image function 
+
+    '''
+
+    def decrypt_image(self, image_array):
+        round_keys = self.expand_key()
+        total_blocks = len(image_array) // BLOCK_SIZE
+        cipher_image_blocks = image_array.reshape(total_blocks, 4, 4)
+        
+        decrypted_image = np.zeros_like(image_array)
+
+        for idx in range(total_blocks):
+            block = cipher_image_blocks[idx]
+            block = self.decrypt_block(block, round_keys)
+            block = self.add_round_key(block, round_keys[0])
+            decrypted_image[idx * BLOCK_SIZE: (idx + 1) * BLOCK_SIZE] = block.flatten()
+
+        decrypted_data = PKCS7.pkcs7_unpadding(decrypted_image)
+        return decrypted_data.reshape((self.image_metadata.image_height, self.image_metadata.image_width))
+
+
     
     def aes_decryption(self):
         if not self.image_metadata.is_colour:
