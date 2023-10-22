@@ -61,7 +61,7 @@ async def encrypt_image(image: UploadFile):
     encrypt_master_key = list(master_key)
 
     ciphertext, tag, signature = alice_encrypts(encrypt_master_key, alice, bob)
-    master_key = master_key.reshape((4, 4))
+    master_key = master_key.reshape((4, 8))
 
     aes_cipher = AES_encryption(image, master_key)
     encrypted_image, metadata = aes_cipher.aes_encryption()
@@ -108,7 +108,7 @@ async def download_file(uid: str):
         bob=bob
     )
 
-    master_key = np.array(master_key).reshape((4, 4))
+    master_key = np.array(master_key).reshape((4, 8))
 
     if not verify_tag and verify_sign:
         raise HTTPException(status_code=400, detail="The Signature is Corrupted")
