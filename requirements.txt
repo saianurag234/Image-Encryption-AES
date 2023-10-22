@@ -6,3 +6,4 @@ pathlib
 uuid
 uvicorn
 pycryptodome
+gunicorn==20.1.0
