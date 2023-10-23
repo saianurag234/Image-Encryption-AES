@@ -75,7 +75,7 @@ async def encrypt_image(image: UploadFile):
     with open(filename, "wb") as f:
         pickle.dump(encrypted_data, f)
 
-    header = {"uid": uid, "message": "File generated successfully!"}
+    headers = {"uid": uid, "message": "File generated successfully!"}
 
     output_path = "encrypted_image.jpg"
     cv2.imwrite(output_path, encrypted_image)
