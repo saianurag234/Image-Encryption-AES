@@ -75,7 +75,9 @@ async def encrypt_image(image: UploadFile):
     with open(filename, "wb") as f:
         pickle.dump(encrypted_data, f)
 
-    return {"uid": uid, "message": "File generated successfully!"}
+    output_path = "encrypted_image.jpg"
+    cv2.imwrite(output_path, encrypted_image)
+    return FileResponse(output_path, media_type="image/jpeg", filename="encrypted_image.jpg"),{"uid": uid, "message": "File generated successfully!"}
 
 @app.get("/decrypt/{encrypted_uid}")
 async def download_file(uid: str):
@@ -115,7 +117,6 @@ async def download_file(uid: str):
     
     aes_final = AES_decryption(pickled_object.encrypted_image, master_key, pickled_object.metadata)
     decrypt = aes_final.aes_decryption()
-    print(decrypt)
     
     output_path = "decrypted_image.jpg"
     cv2.imwrite(output_path, decrypt)
