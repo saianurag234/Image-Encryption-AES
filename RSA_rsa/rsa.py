@@ -1,9 +1,9 @@
 from encrypt import *
 from decrypt import *
-from RSA.rsa_utils import *
+from RSA_rsa.rsa_utils import *
 import random
 from sympy import nextprime
-from RSA.rsa_constant import e
+from RSA_rsa.rsa_constant import e
 
 # def get_e_val(phi):
 #     random_start = random.getrandbits(1024)
